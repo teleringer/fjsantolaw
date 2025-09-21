@@ -76,7 +76,7 @@ export default function ContactForm() {
       formDataToSend.append('subject', formData.subject);
       formDataToSend.append('message', formData.message);
 
-      const response = await fetch('https://readdy.ai/api/form/d30mdjavrfupcr1quseg', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         body: formDataToSend
       });
@@ -104,7 +104,7 @@ export default function ContactForm() {
     <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Send Us a Message</h2>
       
-      <form onSubmit={handleSubmit} data-readdy-form id="contact">
+      <form onSubmit={handleSubmit} id="contact">
         <div className="grid grid-cols-1 gap-6">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
