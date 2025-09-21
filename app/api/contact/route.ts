@@ -58,4 +58,5 @@ export async function POST(req: Request) {
     console.error("Contact route error:", err);
     return Response.json({ ok: false, error: "Server error" }, { status: 500 });
   }
+  export async function GET() { return new Response("OK /api/contact"); }
 }
