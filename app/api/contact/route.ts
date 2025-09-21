@@ -73,11 +73,11 @@ export async function POST(req: Request) {
     try {
       const ackText =
         `Hi ${name},\n\n` +
-        `Thanks for contacting the Law Offices of Frank J. Santomauro.\n` +
+        `Thanks for contacting the Law Offices of Frank J. Santomauro, LLC.\n` +
         `We received your message about "${subject}". A team member will follow up soon.\n\n` +
-        `— Law Offices of Frank J. Santomauro\n` +
+        `— Law Offices of Frank J. Santomauro, LLC\n` +
         `(570) 342-7787\n` +
-        `fjsantolaw.com`;
+        `www.fjsantolaw.com`;
 
       await resend.emails.send({
         from: `Law Offices of Frank J. Santomauro <${from}>`, // from = no-reply@mail.fjsantolaw.com
