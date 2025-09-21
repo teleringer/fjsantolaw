@@ -1,6 +1,6 @@
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Pacifico, Roboto } from "next/font/google";
+import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
 const pacifico = Pacifico({
@@ -17,15 +17,8 @@ const roboto = Roboto({
   variable: '--font-roboto',
 })
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistSans = Inter({ subsets: ["latin"], variable: "--font-geist-sans" });
+const geistMono = Roboto_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
   title: "Law Offices of Frank J. Santomauro, L.L.C. - Experienced Attorney in Scranton, PA",
