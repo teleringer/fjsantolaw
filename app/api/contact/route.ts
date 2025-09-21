@@ -34,18 +34,26 @@ export async function POST(req: Request) {
     const to = process.env.MAIL_TO || "kevin@fjsantolaw.com";
     const from = process.env.MAIL_FROM || "frank@fjsantolaw.com";
 
-    // Send the email via Resend
+    const html = `
+      <div style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+        <h2>New Contact Form Submission</h2>
+        <p><b>Name:</b> ${name}</p>
+        <p><b>Email:</b> ${email}</p>
+        <p><b>Phone:</b> ${phone}</p>
+        <p><b>Subject:</b> ${subject}</p>
+        <p><b>Message:</b></p>
+        <pre style="white-space:pre-wrap">${message}</pre>
+      </div>
+    `;
+
     const { data: result, error } = await resend.emails.send({
       from: `Frank J. Santomauro <${from}>`,
       to: [to],
       subject: `New contact form — ${subject}`,
       reply_to: email,
       text:
-        `Name: ${name}\n` +
-        `Email: ${email}\n` +
-        `Phone: ${phone}\n` +
-        `Subject: ${subject}\n\n` +
-        `${message}`
+        `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\nSubject: ${subject}\n\n${message}`,
+      html
     });
 
     if (error) {
@@ -58,5 +66,7 @@ export async function POST(req: Request) {
     console.error("Contact route error:", err);
     return Response.json({ ok: false, error: "Server error" }, { status: 500 });
   }
-  export async function GET() { return new Response("OK /api/contact"); }
 }
+
+// Optional: keep a GET probe
+export async function GET() { return new Response("OK /api/contact"); }
