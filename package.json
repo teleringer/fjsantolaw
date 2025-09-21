@@ -29,3 +29,4 @@
   "vercel-build": "echo '== ls -la at repo root =='; ls -la; echo '== search for next.config.ts anywhere =='; find . -name 'next.config.ts' -print || true; echo '== running next build =='; next build"
 }
 }
+"vercel-build": "echo '== find next.config.ts ==' && find . -name 'next.config.ts' -print || true && echo '== next build ==' && next build"
