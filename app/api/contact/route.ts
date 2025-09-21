@@ -31,8 +31,15 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, error: "Missing required fields" }, { status: 400 });
     }
 
+    if (!process.env.RESEND_API_KEY) {
+      return Response.json({ ok: false, error: "RESEND_API_KEY missing in environment" }, { status: 500 });
+    }
+    if (!process.env.MAIL_FROM) {
+      return Response.json({ ok: false, error: "MAIL_FROM not set" }, { status: 500 });
+    }
+
     const to = process.env.MAIL_TO || "kevin@fjsantolaw.com";
-    const from = process.env.MAIL_FROM || "frank@fjsantolaw.com";
+    const from = process.env.MAIL_FROM!; // e.g. no-reply@mail.fjsantolaw.com
 
     const html = `
       <div style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
@@ -46,27 +53,56 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    const { data: result, error } = await resend.emails.send({
+    // 1) Send to Kevin (admin/inbox)
+    const { data: adminResult, error: adminError } = await resend.emails.send({
       from: `Frank J. Santomauro <${from}>`,
       to: [to],
       subject: `New contact form — ${subject}`,
-      replyTo: email,
+      replyTo: email, // NOTE: camelCase
       text:
         `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\nSubject: ${subject}\n\n${message}`,
       html
     });
 
-    if (error) {
-      console.error("Resend error:", error);
-      return Response.json({ ok: false, error: "Email send failed" }, { status: 500 });
+    if (adminError) {
+      console.error("Resend admin send error:", adminError);
+      return Response.json({ ok: false, error: adminError.message || "Email send failed" }, { status: 500 });
     }
 
-    return Response.json({ ok: true, id: result?.id }, { status: 200, headers: { "Cache-Control": "no-store" } });
-  } catch (err) {
+    // 2) Auto-reply to the visitor (non-blocking: do not fail if this errors)
+    try {
+      const ackText =
+        `Hi ${name},\n\n` +
+        `Thanks for contacting the Law Offices of Frank J. Santomauro.\n` +
+        `We received your message about "${subject}". A team member will follow up soon.\n\n` +
+        `— Law Offices of Frank J. Santomauro\n` +
+        `(570) 342-7787\n` +
+        `fjsantolaw.com`;
+
+      await resend.emails.send({
+        from: `Law Offices of Frank J. Santomauro <${from}>`, // from = no-reply@mail.fjsantolaw.com
+        to: [email],                                          // visitor’s email
+        subject: "We received your message",
+        replyTo: process.env.MAIL_TO,                         // replies go to Kevin
+        text: ackText,
+        html: `<pre style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;white-space:pre-wrap">${ackText}</pre>`
+      });
+    } catch (ackErr) {
+      // Log and continue — don’t block the main success path
+      console.warn("Resend auto-reply error:", ackErr);
+    }
+
+    return Response.json(
+      { ok: true, id: adminResult?.id },
+      { status: 200, headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (err: any) {
     console.error("Contact route error:", err);
-    return Response.json({ ok: false, error: "Server error" }, { status: 500 });
+    return Response.json({ ok: false, error: err?.message || "Server error" }, { status: 500 });
   }
 }
 
-// Optional: keep a GET probe
-export async function GET() { return new Response("OK /api/contact"); }
+// Optional probe for quick checks
+export async function GET() {
+  return new Response("OK /api/contact");
+}
