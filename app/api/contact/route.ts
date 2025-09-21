@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       from: `Frank J. Santomauro <${from}>`,
       to: [to],
       subject: `New contact form — ${subject}`,
-      reply_to: email,
+      replyTo: email,
       text:
         `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\nSubject: ${subject}\n\n${message}`,
       html
