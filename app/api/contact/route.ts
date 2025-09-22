@@ -10,13 +10,17 @@ function entriesToObject(entries: Iterable<[string, FormDataEntryValue]>) {
   return obj;
 }
 
+function getRecipientList(): string[] {
+  const raw = process.env.MAIL_TO || "frank@fjsantolaw.com";
+  return raw.split(",").map(s => s.trim()).filter(Boolean);
+}
+
 export async function POST(req: Request) {
   try {
     const ct = req.headers.get("content-type") || "";
     let data: any = {};
-    if (ct.includes("application/json")) {
-      data = await req.json();
-    } else {
+    if (ct.includes("application/json")) data = await req.json();
+    else {
       const form = await req.formData();
       data = entriesToObject(form.entries() as any);
     }
@@ -32,14 +36,14 @@ export async function POST(req: Request) {
     }
 
     if (!process.env.RESEND_API_KEY) {
-      return Response.json({ ok: false, error: "RESEND_API_KEY missing in environment" }, { status: 500 });
+      return Response.json({ ok: false, error: "RESEND_API_KEY missing" }, { status: 500 });
     }
     if (!process.env.MAIL_FROM) {
       return Response.json({ ok: false, error: "MAIL_FROM not set" }, { status: 500 });
     }
 
-    const to = process.env.MAIL_TO || "frank@fjsantolaw.com";
-    const from = process.env.MAIL_FROM!; // e.g. frank@fjsantolaw.com
+    const from = process.env.MAIL_FROM!;             // frank@fjsantolaw.com
+    const toList = getRecipientList();               // frank@..., (optional kevin@...)
 
     const html = `
       <div style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
@@ -53,56 +57,47 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    // 1) Send to Frank J. Santomauro (admin/inbox)
-    const { data: adminResult, error: adminError } = await resend.emails.send({
+    // 1) Send to inbox (Frank + optional Kevin)
+    const { data: result, error } = await resend.emails.send({
       from: `Frank J. Santomauro <${from}>`,
-      to: [to],
+      to: toList,
       subject: `New contact form — ${subject}`,
-      replyTo: email, // NOTE: camelCase
+      replyTo: email,                                  // replies go to the visitor
       text:
         `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\nSubject: ${subject}\n\n${message}`,
       html
     });
 
-    if (adminError) {
-      console.error("Resend admin send error:", adminError);
-      return Response.json({ ok: false, error: adminError.message || "Email send failed" }, { status: 500 });
+    if (error) {
+      console.error("Resend error:", error);
+      return Response.json({ ok: false, error: error.message || "Email send failed" }, { status: 500 });
     }
 
-    // 2) Auto-reply to the visitor (non-blocking: do not fail if this errors)
+    // 2) Auto-reply to the visitor (non-blocking)
     try {
       const ackText =
         `Hi ${name},\n\n` +
-        `Thanks for contacting the Law Offices of Frank J. Santomauro, LLC.\n` +
+        `Thanks for contacting the Law Offices of Frank J. Santomauro.\n` +
         `We received your message about "${subject}". A team member will follow up soon.\n\n` +
-        `— Law Offices of Frank J. Santomauro, LLC\n` +
-        `(570) 342-7787\n` +
-        `www.fjsantolaw.com`;
+        `— Law Offices of Frank J. Santomauro\n(570) 342-7787\nfjsantolaw.com`;
 
       await resend.emails.send({
-        from: `Law Offices of Frank J. Santomauro <${from}>`, // from = frank@fjsantolaw.com
-        to: [email],                                          // visitor’s email
+        from: `Law Offices of Frank J. Santomauro <${from}>`,
+        to: [email],
         subject: "We received your message",
-        replyTo: process.env.MAIL_TO,                         // replies go to Frank
+        replyTo: toList[0],                             // replies go to Frank
         text: ackText,
         html: `<pre style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;white-space:pre-wrap">${ackText}</pre>`
       });
     } catch (ackErr) {
-      // Log and continue — don’t block the main success path
       console.warn("Resend auto-reply error:", ackErr);
     }
 
-    return Response.json(
-      { ok: true, id: adminResult?.id },
-      { status: 200, headers: { "Cache-Control": "no-store" } }
-    );
+    return Response.json({ ok: true, id: result?.id }, { status: 200, headers: { "Cache-Control": "no-store" } });
   } catch (err: any) {
     console.error("Contact route error:", err);
     return Response.json({ ok: false, error: err?.message || "Server error" }, { status: 500 });
   }
 }
 
-// Optional probe for quick checks
-export async function GET() {
-  return new Response("OK /api/contact");
-}
+export async function GET() { return new Response("OK /api/contact"); }
