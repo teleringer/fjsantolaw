@@ -38,8 +38,8 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, error: "MAIL_FROM not set" }, { status: 500 });
     }
 
-    const to = process.env.MAIL_TO || "kevin@fjsantolaw.com";
-    const from = process.env.MAIL_FROM!; // e.g. no-reply@mail.fjsantolaw.com
+    const to = process.env.MAIL_TO || "frank@fjsantolaw.com";
+    const from = process.env.MAIL_FROM!; // e.g. frank@fjsantolaw.com
 
     const html = `
       <div style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    // 1) Send to Kevin (admin/inbox)
+    // 1) Send to Frank J. Santomauro (admin/inbox)
     const { data: adminResult, error: adminError } = await resend.emails.send({
       from: `Frank J. Santomauro <${from}>`,
       to: [to],
@@ -80,10 +80,10 @@ export async function POST(req: Request) {
         `www.fjsantolaw.com`;
 
       await resend.emails.send({
-        from: `Law Offices of Frank J. Santomauro <${from}>`, // from = no-reply@mail.fjsantolaw.com
+        from: `Law Offices of Frank J. Santomauro <${from}>`, // from = frank@fjsantolaw.com
         to: [email],                                          // visitor’s email
         subject: "We received your message",
-        replyTo: process.env.MAIL_TO,                         // replies go to Kevin
+        replyTo: process.env.MAIL_TO,                         // replies go to Frank
         text: ackText,
         html: `<pre style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;white-space:pre-wrap">${ackText}</pre>`
       });
