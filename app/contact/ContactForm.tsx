@@ -1,7 +1,9 @@
-
 'use client';
 
 import { useState } from 'react';
+import Script from 'next/script';
+
+const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
 
 export default function ContactForm() {
   const [formData, setFormData] = useState({
@@ -9,58 +11,41 @@ export default function ContactForm() {
     email: '',
     phone: '',
     subject: '',
-    message: ''
+    message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
 
   const formatPhoneNumber = (value: string) => {
-    // Remove all non-digit characters
-    const digits = value.replace(/\D/g, '');
-    
-    // Limit to 10 digits
-    const limitedDigits = digits.slice(0, 10);
-    
-    // Format as (XXX) XXX-XXXX
-    if (limitedDigits.length >= 6) {
-      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`;
-    } else if (limitedDigits.length >= 3) {
-      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`;
-    } else if (limitedDigits.length > 0) {
-      return `(${limitedDigits}`;
-    }
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    if (digits.length >= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    if (digits.length >= 3) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    if (digits.length > 0) return `(${digits}`;
     return '';
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    
     if (name === 'phone') {
-      const formattedPhone = formatPhoneNumber(value);
-      setFormData({
-        ...formData,
-        [name]: formattedPhone
-      });
+      setFormData((s) => ({ ...s, phone: formatPhoneNumber(value) }));
     } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
+      setFormData((s) => ({ ...s, [name]: value }));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus('');
 
+    // Client-side validations to match your current behavior
     if (formData.message.length > 500) {
       setSubmitStatus('Message cannot exceed 500 characters.');
       setIsSubmitting(false);
       return;
     }
-
-    // Validate phone number has 10 digits
     const phoneDigits = formData.phone.replace(/\D/g, '');
     if (phoneDigits.length !== 10) {
       setSubmitStatus('Please enter a valid 10-digit phone number.');
@@ -69,32 +54,31 @@ export default function ContactForm() {
     }
 
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('subject', formData.subject);
-      formDataToSend.append('message', formData.message);
+      const form = e.currentTarget;
+      // IMPORTANT: serialize the entire form so the hidden cf-turnstile-response is included
+      const fd = new FormData(form);
 
-      const response = await fetch('/api/contact', {
+      const res = await fetch('/api/contact', {
         method: 'POST',
-        body: formDataToSend
+        body: fd,
       });
+      const json = await res.json().catch(() => ({} as any));
 
-      if (response.ok) {
-        setSubmitStatus('Message sent successfully! We will contact you soon.');
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          subject: '',
-          message: ''
-        });
+      if (!res.ok || !json?.ok) {
+        setSubmitStatus(json?.error || 'Failed to send message. Please try again.');
+        // @ts-ignore - Turnstile global is injected by the script
+        if (window.turnstile) window.turnstile.reset();
       } else {
-        setSubmitStatus('Failed to send message. Please try again.');
+        setSubmitStatus('Message sent successfully! We will contact you soon.');
+        setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+        form.reset();
+        // @ts-ignore
+        if (window.turnstile) window.turnstile.reset();
       }
-    } catch (error) {
+    } catch {
       setSubmitStatus('Failed to send message. Please try again.');
+      // @ts-ignore
+      if (window.turnstile) window.turnstile.reset();
     } finally {
       setIsSubmitting(false);
     }
@@ -102,9 +86,12 @@ export default function ContactForm() {
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
+      {/* Load Cloudflare Turnstile once */}
+      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" />
+
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Send Us a Message</h2>
-      
-      <form onSubmit={handleSubmit} id="contact">
+
+      <form onSubmit={handleSubmit} id="contact" className="space-y-6">
         <div className="grid grid-cols-1 gap-6">
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -121,7 +108,7 @@ export default function ContactForm() {
               placeholder="Enter your full name"
             />
           </div>
-          
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email Address *
@@ -137,7 +124,7 @@ export default function ContactForm() {
               placeholder="Enter your email address"
             />
           </div>
-          
+
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
               Phone Number *
@@ -153,7 +140,7 @@ export default function ContactForm() {
               placeholder="(570) 787-3029"
             />
           </div>
-          
+
           <div>
             <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
               Legal Matter Subject *
@@ -179,7 +166,7 @@ export default function ContactForm() {
               <option value="Other">Other</option>
             </select>
           </div>
-          
+
           <div>
             <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
               Message *
@@ -194,10 +181,15 @@ export default function ContactForm() {
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-vertical"
               placeholder="Please describe your legal matter..."
-            ></textarea>
+            />
             <p className="text-xs text-gray-500 mt-1">{formData.message.length}/500 characters</p>
           </div>
-          
+
+          {/* Cloudflare Turnstile widget: auto-injects hidden cf-turnstile-response into this form */}
+          <div className="mt-2">
+            <div className="cf-turnstile" data-sitekey={SITE_KEY} data-theme="light" />
+          </div>
+
           <button
             type="submit"
             disabled={isSubmitting}
@@ -206,16 +198,14 @@ export default function ContactForm() {
             {isSubmitting ? 'Sending...' : 'Send Message'}
           </button>
         </div>
-        <!-- In your Contact page head (or layout) once -->
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
-<!-- Inside your form that posts to /api/contact -->
-<div class="cf-turnstile" data-sitekey="{process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}"></div>
-
       </form>
-      
+
       {submitStatus && (
-        <div className={`mt-4 p-4 rounded-lg ${submitStatus.includes('successfully') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+        <div
+          className={`mt-4 p-4 rounded-lg ${
+            submitStatus.includes('successfully') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}
+        >
           {submitStatus}
         </div>
       )}
