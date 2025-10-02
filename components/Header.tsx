@@ -67,7 +67,7 @@ export default function Header() {
       }`}>
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <div className="flex items-center">
-            <Link href="/" className="cursor-pointer">
+            <Link href="https://fjsantolaw.com/" className="cursor-pointer">
               <img 
                 src="https://static.readdy.ai/image/34eddc7177ae71b8c76003a700ee36ff/91b64cf48f32464c374d8a11390d0128.png" 
                 alt="Law Offices of Frank J. Santomauro, L.L.C." 
